@@ -1,13 +1,6 @@
 "use server";
-import { hash } from "bcryptjs";
-import { db } from "@/lib/db";
-import { signIn } from "@/lib/auth";
-import { redirect } from "next/navigation";
-export async function register(form: FormData) {
- const name=String(form.get("name")||"").trim(), business=String(form.get("business")||"").trim();
- const email=String(form.get("email")||"").toLowerCase().trim(), password=String(form.get("password")||"");
- if(!name||!business||!email||password.length<8) throw new Error("Please complete all fields. Password must be at least 8 characters.");
- const user=await db.user.create({data:{name,email,passwordHash:await hash(password,12),workspace:{create:{name:business}}}});
- await signIn("credentials",{email,password,redirectTo:"/app"});
- redirect("/app");
-}
+import { auth } from "@/lib/auth";import { db } from "@/lib/db";import { revalidatePath } from "next/cache";import { redirect } from "next/navigation";
+async function workspace(){const s=await auth();if(!s?.user?.id)throw new Error("Unauthorized");const w=await db.workspace.findUnique({where:{ownerId:s.user.id}});if(!w)throw new Error("Workspace missing");return w;}
+export async function createConversation(form:FormData){const w=await workspace();const c=await db.conversation.create({data:{workspaceId:w.id,customer:String(form.get("customer")),subject:String(form.get("subject")),channel:String(form.get("channel")||"Website"),messages:{create:{role:"customer",body:String(form.get("message"))}}}});redirect(`/app/inbox/${c.id}`);}
+export async function sendReply(form:FormData){const w=await workspace();const id=String(form.get("id")),body=String(form.get("body")||"").trim();const c=await db.conversation.findFirst({where:{id,workspaceId:w.id}});if(!c||!body)throw new Error("Conversation not found or reply empty");await db.message.create({data:{conversationId:id,role:"agent",body}});await db.conversation.update({where:{id},data:{status:"open"}});revalidatePath(`/app/inbox/${id}`);}
+export async function closeConversation(form:FormData){const w=await workspace();await db.conversation.updateMany({where:{id:String(form.get("id")),workspaceId:w.id},data:{status:"closed"}});revalidatePath("/app/inbox");}
