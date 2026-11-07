@@ -1,0 +1,2 @@
+import Link from "next/link";
+export default function Home(){return <><nav><span className="brand">MELDRUNE</span><Link href="/login">Log in</Link></nav><main className="shell"><p className="muted">THE CONVERSATION OPERATING SYSTEM</p><h1>Every customer conversation.<br/>One clear next step.</h1><p>Bring customer questions, business knowledge, and helpful AI reply drafts into one simple workspace.</p><p><Link className="btn" href="/register">Start your workspace</Link></p></main></>}
