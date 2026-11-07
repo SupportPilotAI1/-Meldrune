@@ -1,0 +1,3 @@
+import { register } from "@/app/register/actions";
+import Link from "next/link";
+export default function Register(){return <main className="shell"><div className="panel"><h1>Create your Meldrune workspace</h1><form action={register}><label>Your name</label><input name="name" required/><label>Business name</label><input name="business" required/><label>Email</label><input name="email" type="email" required/><label>Password (8+ characters)</label><input name="password" type="password" minLength={8} required/><button className="btn">Create account</button></form><p>Already registered? <Link href="/login">Log in</Link></p></div></main>}

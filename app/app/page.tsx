@@ -1,0 +1,4 @@
+import Link from "next/link";
+import { auth } from "@/lib/auth";import { db } from "@/lib/db";
+export default async function Dashboard(){const s=await auth();const w=await db.workspace.findUnique({where:{ownerId:s!.user.id},include:{_count:{select:{faqs:true,threads:true}}}});
+return <><h1>{w?.name || "Your workspace"}</h1><p className="muted">Your customer conversations, knowledge, and next actions in one place.</p><div className="row"><div className="panel"><h2>{w?._count.threads??0}</h2><p className="muted">Conversations</p><Link href="/app/inbox">Open inbox →</Link></div><div className="panel"><h2>{w?._count.faqs??0}</h2><p className="muted">Knowledge articles</p><Link href="/app/knowledge">Manage knowledge →</Link></div></div><div className="panel"><h2>Get started</h2><p>1. Add your business FAQs. 2. Create a conversation. 3. Generate a grounded reply draft.</p><Link className="btn" href="/app/inbox">Go to inbox</Link></div></>}
