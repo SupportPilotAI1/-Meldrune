@@ -17,14 +17,19 @@ model User {
   workspace    Workspace?
 }
 model Workspace {
-  id        String @id @default(cuid())
-  name      String
-  tone      String @default("Friendly, clear, and helpful")
-  createdAt DateTime @default(now())
-  ownerId   String @unique
-  owner     User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
-  faqs      FAQ[]
-  threads   Conversation[]
+  id          String @id @default(cuid())
+  name        String
+  tone        String @default("Friendly, clear, and helpful")
+  createdAt   DateTime @default(now())
+  ownerId     String @unique
+  owner       User @relation(fields: [ownerId], references: [id], onDelete: Cascade)
+  faqs        FAQ[]
+  threads     Conversation[]
+  channels    Channel[]
+  // Free trial: every new workspace starts on a 14-day trial.
+  // plan is "trial" or "paid" (paid is added when billing lands).
+  plan        String @default("trial")
+  trialEndsAt DateTime?
 }
 model FAQ {
   id          String @id @default(cuid())
@@ -35,25 +40,56 @@ model FAQ {
   workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
   @@index([workspaceId])
 }
+
+// One connected social inbox (Instagram or Facebook) belonging to a workspace.
+// Access tokens are stored ENCRYPTED (AES-GCM, see lib/meta-crypto.ts) —
+// never plaintext. One Meta app covers both platforms.
+model Channel {
+  id                String @id @default(cuid())
+  platform          String // "instagram" or "facebook"
+  externalAccountId String // Facebook Page ID, or Instagram business account ID
+  displayName       String?
+  status            String @default("connected") // "connected" | "disconnected" | "error"
+  accessTokenEnc    String?
+  tokenExpiresAt    DateTime?
+  webhookSubscribed Boolean @default(false)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  workspaceId       String
+  workspace         Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  conversations     Conversation[]
+  @@unique([workspaceId, platform, externalAccountId])
+  @@index([workspaceId])
+}
 model Conversation {
-  id          String @id @default(cuid())
-  customer    String
-  subject     String
-  channel     String @default("Website")
-  status      String @default("open")
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-  workspaceId String
-  workspace   Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
-  messages    Message[]
+  id               String @id @default(cuid())
+  customer         String
+  subject          String
+  channel          String @default("Website")
+  status           String @default("open")
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+  workspaceId      String
+  workspace        Workspace @relation(fields: [workspaceId], references: [id], onDelete: Cascade)
+  messages         Message[]
+  // Meta DM threads: which connected channel this came from, and the
+  // external thread / sender ids so replies go back to the right person.
+  channelId        String?
+  channelRel       Channel? @relation(fields: [channelId], references: [id])
+  externalThreadId String?
+  externalSenderId String?
   @@index([workspaceId, status])
+  @@index([channelId])
+  @@index([externalThreadId])
 }
 model Message {
-  id             String @id @default(cuid())
-  role           String
-  body           String
-  createdAt      DateTime @default(now())
-  conversationId String
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  id                String @id @default(cuid())
+  role              String
+  body              String
+  createdAt         DateTime @default(now())
+  conversationId    String
+  conversation      Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  // Meta message id ("mid") — used to deduplicate webhook deliveries.
+  externalMessageId String? @unique
   @@index([conversationId, createdAt])
 }
